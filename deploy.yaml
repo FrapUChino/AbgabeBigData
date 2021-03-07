@@ -1,0 +1,114 @@
+#checkin
+# - hosts: all
+#   gather_facts: False
+#   tasks:
+#     - name: set system hostname
+#       command: hostnamectl set-hostname {{ inventory_hostname }}
+
+- hosts: masters
+  user: ubuntu
+  become: yes
+  become_user: root
+  gather_facts: False
+  tasks:
+    - name: SSH connectivity
+      wait_for_connection:
+
+    - name: CloudInit done /var/lib/cloud/instance/boot-finished exists
+      raw: while ! test -f /var/lib/cloud/instance/boot-finished; do sleep 5s; done
+      retries: 5
+      delay: 1
+
+    # - name: Python3 verfügabr
+    #   raw: test -e /usr/bin/python3 || (apt -y update && apt install -y python3)
+
+    # - name: Python als /usr/bin/python3 existiert
+    #   raw: if [ -f /usr/bin/python3 ] && [ ! -f /usr/bin/python ]; then ln -s /usr/bin/python3 /usr/bin/python; fi
+
+#Install k3s on master
+- hosts: masters
+  user: ubuntu
+  become: yes
+  become_user: root
+  gather_facts: False
+  tasks:
+    - name: Install k3s on master
+      raw: curl -sfL https://get.k3s.io | sh -
+    - name: set masterToken
+      command: "cat /var/lib/rancher/k3s/server/node-token"
+      register: command_output
+    - set_fact:
+        master_token={{ command_output.stdout }}
+      delegate_to: "{{ item }}"
+      delegate_facts: true
+      with_items: "{{ groups['all'] }}"
+    - name: Print masterToken to console
+      ansible.builtin.debug:
+        msg: Token is {{ master_token }} and IP is {{groups['masters'][0]}}
+
+#Install k3s on nodes with url,token env-vars
+- hosts: nodes
+  user: ubuntu
+  become: yes
+  become_user: root
+  tasks:
+    - name: Install curl
+      apt:
+        name: ["curl"]
+        update_cache: yes #apt update
+        state: latest
+    - name: gimme tha environment
+      ansible.builtin.debug:
+          msg: Token is {{ master_token }} and IP is {{groups['masters'][0]}}
+    - name: Install k3s on nodes with master url and token
+      shell: "curl -sfL https://get.k3s.io | K3S_URL=https://${k3s_url} K3S_TOKEN=${k3s_token} sh -"
+      environment:
+        k3s_url: "{{groups['masters'][0]}}:6443"
+        k3s_token: "{{ master_token }}"
+
+# Install helm
+# add repos
+# apply stuff in README
+#install docker
+  #docker login
+# install skaffold
+  #set skaffold repo
+# deploy app
+    # - name: copy server.js
+    #   copy:
+    #     src: /Users/lukas/Documents/Hochschule/S7/BigData/App/server.js
+    #     dest: /home/ubuntu/app
+    #     mode: '0644'
+
+    # - name: copy package.json
+    #   copy:
+    #     src: /Users/lukas/Documents/Hochschule/S7/BigData/App/package.json
+    #     dest: /home/ubuntu/app
+    #     mode: '0644'
+
+    # - name: Install packages based on package.json
+    #   community.general.npm:
+    #     path: /Users/lukas/Documents/Hochschule/S7/BigData/App
+    #     state: present
+
+    # - name: Stop App
+    #   # ignore_errors: yes
+    #   # no_log: True
+    #   command:
+    #     chdir: /home/ubuntu/app/
+    #     cmd: pm2 -s stop app
+
+    # - name: Start App
+    #   command:
+    #     chdir: /home/ubuntu/app/
+    #     cmd: pm2 -s start server.js --name app
+
+        
+#ansible-playbook -i hosts deploy.yaml
+
+
+
+
+
+
+
