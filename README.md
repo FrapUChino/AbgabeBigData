@@ -6,7 +6,7 @@ Requirements
 ------------
 
 -	[Terraform](https://www.terraform.io/downloads.html) 0.12.x
--	[Ansible]https://www.ansible.com)
+-	[Ansible](https://www.ansible.com)
 
 
 ## Prerequisites
@@ -24,26 +24,36 @@ A running Hadoop cluster with YARN (for checkpointing)
 ```bash
 helm repo add stable https://kubernetes-charts.storage.googleapis.com/
 helm install --namespace=default --set hdfs.dataNode.replicas=1 --set yarn.nodeManager.replicas=1 --set hdfs.webhdfs.enabled=true my-hadoop-cluster stable/hadoop
+```
 
 Apply the whole thing
 ---------------------------
+
 fürs erste:
 
 - var-Namen wie Passwort, Login, Netzwerk etc. ersetzen
 
-```sh
-$ terraform apply
-$ ansible-playbook -i hosts deploy.yaml
+```bash
+terraform apply
+ansible-playbook -i hosts deploy.yaml
 ```
 
 --> deployed k3s cluster, aber nicht die App
 
 set kubectl to remote
 on remote:
-sudo chmod 777 /etc/rancher/k3s/k3s.yaml
 
-scp ubuntu@IP_ADRESS:/etc/rancher/k3s/k3s.yaml .
-"change ip to floatingIp"
+```bash
+sudo chmod 777 /etc/rancher/k3s/k3s.yaml
+```
+
+local:
+
+```bash
+sudo chmod 777 /etc/rancher/k3s/k3s.yaml
+```
+
+& "change ip to floatingIp"
 
 ```sh
 export KUBECONFIG=/Users/lukas/Documents/Hochschule/S7/BigData/PfisterersAppOnOpenStack/k3s.yaml
