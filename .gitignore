@@ -1,3 +1,4 @@
 hosts
 .terraform/
 k3s.yaml
+.terraform.lock.hcl
