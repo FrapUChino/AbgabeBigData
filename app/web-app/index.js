@@ -135,23 +135,27 @@ async function sendTrackingMessage(data) {
 // HTML helper to send a response to the client
 // -------------------------------------------------------
 
-async function sendResponse(res) {
-	// res.write("<h2 align='center'><font color='#A52A2A'><strong>Liste mit Bestseller-Buechern</strong></font></h2>");
-	// res.write("<h3 align='center'><font>im Rahmen des Moduls Cloud & BigData - der Big Data Datensatz stammt von kaggle.com</font ></h3>");
-	// res.write("<h3 align='center'><font>von Lukas und Kelly</font ></h3>");
-	// res.write("<table align='center' cellpadding='5' cellspacing='5' border='1'>");
-	// res.write("<tr bgcolor='#A52A2A'>");
-	// res.write("<td>Buch ID</td><td>Titel</td><td>Authoren</td><td>Bewertung</td><td>ISBN</td><td>Sprache</td><td>Seitenzahl</td><td>Veroeff. Datum</td><td>Verlag</td>");
-	// res.write("</tr>");
-	let result = await executeQuery("SELECT * FROM buecher WHERE id=1;",[]);
-	if (result) {
-		console.log(result)
-		res.write(result.toString());
-	} else {
-		console.log("No resuts for execute query.")
-	}
-	res.end();
-	res.send();
+async function sendResponse(res,html) {
+	res.send(`<!DOCTYPE html>
+		<html lang="en">
+		<head>
+			<meta charset="UTF-8">
+			<meta name="viewport" content="width=device-width, initial-scale=1.0">
+			<title>Big Data Use-Case Demo</title>
+			<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/mini.css/3.0.1/mini-default.min.css">
+		</head>
+		<body>
+			<h1>Kelly&Lukas</h1>
+			<p>
+				<a>Randomly fetch some books --> comes later </a>
+				<span id="out"></span>
+			</p>
+			${html}
+			<hr>
+			<h2>Information about the generated page</h4>
+		</body>
+	</html>
+	`)
 }
 
 // -------------------------------------------------------
@@ -159,28 +163,30 @@ async function sendResponse(res) {
 // -------------------------------------------------------
 
 // Get list of missions (from cache or db)
-// async function getMissions() {
-// 	const key = 'missions'
-// 	let cachedata = await getFromCache(key)
+async function getAllBooks() {
+	// TODO: make caching work
 
-// 	if (cachedata) {
-// 		console.log(`Cache hit for key=${key}, cachedata = ${cachedata}`)
-// 		return { result: cachedata, cached: true }
-// 	} else {
-// 		console.log(`Cache miss for key=${key}, querying database`)
-// 		let executeResult = await executeQuery("SELECT id FROM mission.buecher;", [])
-// 		let data = executeResult.fetchAll()
-// 		if (data) {
-// 			let result = data.map(row => row[0])
-// 			console.log(`Got result=${result}, storing in cache`)
-// 			if (memcached)
-// 				await memcached.set(key, result, cacheTimeSecs);
-// 			return { result, cached: false }
-// 		} else {
-// 			throw "No Book data found"
-// 		}
-// 	}
-// }
+	const key = 'buecher'
+	let cachedata = await getFromCache(key)
+
+	if (cachedata) {
+		console.log(`Cache hit for key=${key}, cachedata = ${cachedata}`)
+		return { result: cachedata, cached: true }
+	} else {
+		console.log(`Cache miss for key=${key}, querying database`)
+		let executeResult = await executeQuery("SELECT * FROM buecher;", [])
+		let data = executeResult.fetchAll()
+		if (data) {
+			let result = data.map(row => row[0])
+			console.log(`Got result=${result}, storing in cache`)
+			if (memcached)
+				await memcached.set(key, result, cacheTimeSecs);
+			return { result, cached: false }
+		} else {
+			throw "No Book data found"
+		}
+	}
+}
 
 // Get popular missions (from db only)
 // async function getPopular(maxCount) {
@@ -192,29 +198,19 @@ async function sendResponse(res) {
 
 // Return HTML for start page
 app.get("/", (req, res) => {
-	// const topX = 10;
-	// Promise.all([getMissions(), getPopular(topX)]).then(values => {
-		// const missions = values[0]
-		// const popular = values[1]
 
-		// const missionsHtml = missions.result
-		// 	.map(m => `<a href='missions/${m}'>${m}</a>`)
-		// 	.join(", ")
+	Promise.all([getAllBooks()]).then(values => {
+		const books = values[0]
 
-		// const popularHtml = popular
-		// 	.map(pop => `<li> <a href='missions/${pop.mission}'>${pop.mission}</a> (${pop.count} views) </li>`)
-		// 	.join("\n")
+		const booksHtml = books.result
+			.map(b => `<a href='books/${b}'>${b}</a>`)
+			.join(", ")
 
-		// const html = `
-		// 	<h1>Top ${topX} Missions</h1>		
-		// 	<p>
-		// 		<ol style="margin-left: 2em;"> ${popularHtml} </ol> 
-		// 	</p>
-		// 	<h1>All Missions</h1>
-		// 	<p> ${missionsHtml} </p>
-		// res.send("<h1>Hallo von Lukas und Kelly</h1>")
-		sendResponse(res)
-	// })
+		const html = `<h1>All Books</h1>
+		<p> ${booksHtml} </p>`
+
+		sendResponse(res, html)
+	})
 })
 
 // -------------------------------------------------------
