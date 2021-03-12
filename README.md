@@ -50,10 +50,10 @@ sudo chmod 777 /etc/rancher/k3s/k3s.yaml
 local:
 
 ```bash
-sudo chmod 777 /etc/rancher/k3s/k3s.yaml
+scp  ubuntu@MASTER_IP:/etc/rancher/k3s/k3s.yaml .
 ```
 
-& "change ip to floatingIp"
+ "change ip to floatingIp" inside local copy of k3s.yaml
 
 ```sh
 export KUBECONFIG=/Users/lukas/Documents/Hochschule/S7/BigData/PfisterersAppOnOpenStack/k3s.yaml
