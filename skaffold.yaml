@@ -1,0 +1,21 @@
+apiVersion: skaffold/v2beta11
+kind: Config
+metadata:
+  name: apponopenstack
+build:
+  artifacts:
+  - image: farberg/popular-slides
+    context: app/web-app
+    docker:
+      dockerfile: Dockerfile
+  - image: farberg/popular-slides-spark
+    context: app/spark-app
+    docker:
+      dockerfile: Dockerfile
+deploy:
+  kubectl:
+    manifests:
+    - app/k8s/memcached.yaml
+    - app/k8s/mysql.yaml
+    - app/k8s/popular-slides-app.yaml
+    - app/k8s/popular-slides-spark.yaml
