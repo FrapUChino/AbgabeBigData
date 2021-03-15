@@ -8,7 +8,7 @@ const express = require('express')
 
 const app = express()
 const cacheTimeSecs = 15
-const numberOfBooks = 300
+const numberOfBooks = 140
 
 // -------------------------------------------------------
 // Command-line options
@@ -150,7 +150,7 @@ async function sendResponse(res, html) {
 				for(var i = 0; i < maxRepetitions; ++i) {
 					const booksId = Math.floor(Math.random() * ${numberOfBooks})
 					console.log("Fetching Book id " + booksId)
-					fetch("/books/booksId", {cache: 'no-cache'})
+					fetch("/books/"+booksId, {cache: 'no-cache'})
 				}
 			}
 		</script>
@@ -159,7 +159,7 @@ async function sendResponse(res, html) {
 			<h1 align='center'><font color='#2f4f4f'><strong>List of Bestseller-Books</strong></font></h1>
 			<h3 align='center'><font color='#808080'>by Lukas & Kelly for Cloud & BigData course - the dataset is from kaggle.com</font ></h3>
 			<p>
-				<a href="javascript: fetchRandomBooks();">Randomly fetch some missions</a>
+				<a href="javascript: fetchRandomBooks();">Randomly fetch some Books</a>
 				<span id="out"></span>
 			</p>
 			${html}
@@ -201,27 +201,59 @@ async function getAllBooks() {
 }
 
 // Get popular missions (from db only)
-// async function getPopular(maxCount) {
-// 	const query = "SELECT id, count FROM popular ORDER BY count DESC LIMIT ?"
-// 	return (await executeQuery(query, [maxCount]))
-// 		.fetchAll()
-// 		.map(row => ({ mission: row[0], count: row[1] }))
-// }
+async function getPopular(maxCount) {
+	const query = "SELECT * FROM popular ORDER BY count DESC LIMIT ?"
+	return (await executeQuery(query, [maxCount]))
+		.fetchAll()
+		.map(row => ({ book: row[0], count: row[1] }))
+}
 
 // Return HTML for start page
 app.get("/", (req, res) => {
-
-	Promise.all([getAllBooks()]).then(values => {
+	Promise.all([getAllBooks(), getPopular(10)]).then(values => {
 		const books = values[0]
+		const popular = values[1]
 
 		const booksHtml = books.result
-			.map(b => `<a href='books/${b}'>${b}</a>`)
-			.join(", ")
+		.map(b => `<a href='books/${b}'>${b}</a>`)
+		.join(", ")
 
-		const html = `<h1><font color='#808080'>All Books</font></h1>
-		<p> ${booksHtml} </p>`
 
+		const popularHtml = popular
+			.map(pop => `<li> <a href='books/${pop.book}'>${pop.book}</a> (${pop.count} views) </li>`)
+			.join("\n")
+		
+		const html = `
+			<h1>Top ${10} Missions</h1>		
+			<p>
+				<ol style="margin-left: 2em;"> ${popularHtml} </ol> 
+			</p>
+			<h1><font color='#808080'>All Books</font></h1><p> ${booksHtml} </p>`
 		sendResponse(res, html)
+
+
+		// const html = `
+		// 	<h1>Top ${10} Missions</h1>		
+		// 	<p>
+		// 		<ol style="margin-left: 2em;"> ${popularHtml} </ol> 
+		// 	</p>
+		// 	<h1>All Missions</h1>
+		// 	<p> ${missionsHtml} </p>
+		// `
+		// sendResponse(res, html, missions.cached)
+		
+			// Promise.all([getAllBooks()]).then(values => {
+			// 	const books = values[0]
+		
+			// 	const booksHtml = books.result
+			// 		.map(b => `<a href='books/${b}'>${b}</a>`)
+			// 		.join(", ")
+		
+			// 	const html = `<h1><font color='#808080'>All Books</font></h1>
+			// 	<p> ${booksHtml} </p>`
+		
+			// 	sendResponse(res, html)
+			// })
 	})
 })
 

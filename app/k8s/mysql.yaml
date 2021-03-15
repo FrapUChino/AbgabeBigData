@@ -20,9 +20,9 @@ data:
     );
 
     CREATE TABLE `popular` (
-      `ID` VARCHAR(30) NOT NULL,
+      `book` VARCHAR(30) NOT NULL,
       `count` BIGINT,
-       PRIMARY KEY (`id`)
+       PRIMARY KEY (`book`)
     );
 
     LOCK TABLES `buecher` WRITE;
