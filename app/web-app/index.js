@@ -8,7 +8,7 @@ const express = require('express')
 
 const app = express()
 const cacheTimeSecs = 15
-const numberOfMissions = 30
+const numberOfBooks = 300
 
 // -------------------------------------------------------
 // Command-line options
@@ -143,12 +143,23 @@ async function sendResponse(res, html) {
 			<meta name="viewport" content="width=device-width, initial-scale=1.0">
 			<title>Big Data App Booklist</title>
 			<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/mini.css/3.0.1/mini-default.min.css">
+			<script>
+			function fetchRandomBooks() {
+				const maxRepetitions = 10
+				document.getElementById("out").innerText = "Fetching " + maxRepetitions + " random books, see console output"
+				for(var i = 0; i < maxRepetitions; ++i) {
+					const booksId = Math.floor(Math.random() * ${numberOfBooks})
+					console.log("Fetching Book id " + booksId)
+					fetch("/books/booksId", {cache: 'no-cache'})
+				}
+			}
+		</script>
 		</head>
 		<body style='background-color:#DCDCDC;'>
 			<h1 align='center'><font color='#2f4f4f'><strong>List of Bestseller-Books</strong></font></h1>
 			<h3 align='center'><font color='#808080'>by Lukas & Kelly for Cloud & BigData course - the dataset is from kaggle.com</font ></h3>
 			<p>
-				<a>Randomly fetch some books --> comes later </a>
+				<a href="javascript: fetchRandomBooks();">Randomly fetch some missions</a>
 				<span id="out"></span>
 			</p>
 			${html}
@@ -218,9 +229,9 @@ app.get("/", (req, res) => {
 // Get a specific mission (from cache or DB)
 // -------------------------------------------------------
 
-async function getMission(mission) {
-	const query = "SELECT title FROM mission.buecher WHERE id = ?"
-	const key = 'mission_' + mission
+async function getBook(book) {
+	const query = "SELECT * FROM buecher WHERE id = ?"
+	const key = book
 	let cachedata = await getFromCache(key)
 
 	if (cachedata) {
@@ -229,9 +240,9 @@ async function getMission(mission) {
 	} else {
 		console.log(`Cache miss for key=${key}, querying database`)
 
-		let data = (await executeQuery(query, [mission])).fetchOne()
+		let data = (await executeQuery(query, [book])).fetchOne()
 		if (data) {
-			let result = { mission: data[0], heading: data[1], description: data[2] }
+			let result = { id: data[0], title: data[1], authors: data[2] }
 			console.log(`Got result=${result}, storing in cache`)
 			if (memcached)
 				await memcached.set(key, result, cacheTimeSecs);
@@ -242,20 +253,19 @@ async function getMission(mission) {
 	}
 }
 
-app.get("/missions/:mission", (req, res) => {
-	let mission = req.params["mission"]
+app.get("/books/:book", (req, res) => {
+	let book = req.params["book"]
 
 	// Send the tracking message to Kafka
 	sendTrackingMessage({
-		mission,
+		book,
 		timestamp: Math.floor(new Date() / 1000)
 	}).then(() => console.log("Sent to kafka"))
 		.catch(e => console.log("Error sending to kafka", e))
 
 	// Send reply to browser
-	getMission(mission).then(data => {
-		sendResponse(res, `<h1>${data.mission}</h1><p>${data.heading}</p>` +
-			data.description.split("\n").map(p => `<p>${p}</p>`).join("\n"),
+	getBook(book).then(data => {
+		sendResponse(res, `<h1>${data.title}</h1><p>${data.authors}</p>`,
 			data.cached
 		)
 	}).catch(err => {
