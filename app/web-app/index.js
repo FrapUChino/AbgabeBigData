@@ -171,9 +171,7 @@ async function sendResponse(res, html, tabelle) {
 			<tr bgcolor="#A52A2A">
 			<td>Buch ID</td><td>Titel</td><td>Authoren</td><td>Bewertung</td><td>ISBN</td><td>Sprache</td><td>Seitenzahl</td><td>Veroeff. Datum</td><td>Verlag</td>
 			</tr>
-			<script>
 			${tabelle}
-			</script>
 			</table>
 		</body>
 	</html>
@@ -289,63 +287,33 @@ app.get("/", (req, res) => {
 		const books = values[0]
 		const popular = values[1]
 
-		const booksHtml = books.result
-		.map(b => `<a href='books/${b.id}'>${b.title}</a>`)
-		.join(", ")
-
-<<<<<<< HEAD
+		// const booksHtml = books.result
+		// .map(b => `<a href='books/${b.id}'>${b.title}</a>`)
+		// .join(", ")
 
 		const popularHtml = popular
 			.map(pop => `<li> <a href='books/${pop.book}'>${pop.book}</a> (${pop.count} views) </li>`)
 			.join("\n")
-		
-		const html = `
+
+			const html = `
 			<h1>Top ${10} Missions</h1>		
 			<p>
 				${createPopularTableHTML(popular)}
 			<p>
-			<h1><font color='#808080'>All Books</font></h1><p> ${booksHtml} </p>
 			`
-		sendResponse(res, html)
-
-
-		// const html = `
-		// 	<h1>Top ${10} Missions</h1>		
-		// 	<p>
-		// 		<ol style="margin-left: 2em;"> ${popularHtml} </ol> 
-		// 	</p>
-		// 	<h1>All Missions</h1>
-		// 	<p> ${missionsHtml} </p>
-		// `
-		// sendResponse(res, html, missions.cached)
-		
-			// Promise.all([getAllBooks()]).then(values => {
-			// 	const books = values[0]
-		
-			// 	const booksHtml = books.result
-			// 		.map(b => `<a href='books/${b}'>${b}</a>`)
-			// 		.join(", ")
-		
-			// 	const html = `<h1><font color='#808080'>All Books</font></h1>
-			// 	<p> ${booksHtml} </p>`
-		
-			// 	sendResponse(res, html)
-			// })
-=======
-		const html = `<h1><font color='#808080'>All Books</font></h1>
-		<p> ${booksHtml} </p>`
-//	const tableHtml = books.result
-//	.map(b => `<tr><td>${b.book}</td></tr>`) 
-//	.join(", ")
-		const tabelle = `for (var row in ${books.result}) {
-			'<tr>';
-			for (var column in ${books.result}[row]) {
-				'<td>' + ${books.result}[row][column] + '</td>';
-			}
-			'</tr>';
-		}`
-		sendResponse(res, html, tabelle)
->>>>>>> origin/kelly
+			const tabelle = books.result
+				.map(b => `<tr>
+						<td>${b.id}</td>
+						<td><a href='books/${b.id}'/>${b.title}</a></td>
+						<td>${b.author}</td>
+						<td>${b.rating}</td>
+						<td>${b.isbn}</td>
+						<td>${b.language}</td>
+						<td>${b.pages}</td>
+						<td>${b.date}</td>
+						<td>${b.publisher}</td>
+						</tr>`) 
+					sendResponse(res, html, tabelle)
 	})
 })
 
@@ -354,15 +322,9 @@ app.get("/", (req, res) => {
 // Get a specific mission (from cache or DB)
 // -------------------------------------------------------
 
-<<<<<<< HEAD
 async function getBook(book) {
 	const query = "SELECT * FROM buecher WHERE id = ?"
 	const key = book
-=======
-async function getMission(mission) {
-	const query = "SELECT title FROM buecher WHERE id = ?"
-	const key = 'mission_' + mission
->>>>>>> origin/kelly
 	let cachedata = await getFromCache(key)
 
 	if (cachedata) {
@@ -374,7 +336,7 @@ async function getMission(mission) {
 		let row = (await executeQuery(query, [book])).fetchOne()
 		if (row) {
 			let result = {id: row[0], title: row[1], author: row[2], rating: row[3],isbn: row[4],language: row[5],pages: row[6],date: row[7],publisher: row[8]}
-			console.log(`Got result=${result}, storing in cache`)
+			console.log(`Got result=${result.id}, storing in cache`)
 			if (memcached)
 				await memcached.set(key, result, cacheTimeSecs);
 			return { ...result, cached: false }
