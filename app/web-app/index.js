@@ -189,7 +189,7 @@ async function getAllBooks() {
 		let executeResult = await executeQuery("SELECT * FROM buecher;", [])
 		let data = executeResult.fetchAll()
 		if (data) {
-			let result = data.map(row => row[0])
+			let result = data.map(row => ({id: row[0], title: row[1], author: row[2], rating: row[3],isbn: row[4],language: row[5],pages: row[6],date: row[7],publisher: row[8]}))
 			console.log(`Got result=${result}, storing in cache`)
 			if (memcached)
 				await memcached.set(key, result, cacheTimeSecs);
@@ -202,10 +202,74 @@ async function getAllBooks() {
 
 // Get popular missions (from db only)
 async function getPopular(maxCount) {
-	const query = "SELECT * FROM popular ORDER BY count DESC LIMIT ?"
+	const query = "SELECT book,count FROM popular ORDER BY count DESC LIMIT ?"
 	return (await executeQuery(query, [maxCount]))
 		.fetchAll()
 		.map(row => ({ book: row[0], count: row[1] }))
+}
+
+function createPopularTableHTML(popularBooks) {
+
+	popularBooksNames= popularBooks
+	.map(pop => {
+		return pop.book
+	})
+
+	popularBooksCounts= popularBooks
+	.map(pop => {
+		return pop.count
+	})
+
+	const html = `
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.min.js"></script>
+		<canvas id="myChart" width="200px" height="200px"></canvas>
+		<script>
+		var ctx = document.getElementById('myChart').getContext('2d');
+		var myChart = new Chart(ctx, {
+			type: 'bar',
+			data: {
+				labels: [${popularBooksNames}],
+				datasets: [{
+					label: 'Popular Books',
+					data: [${popularBooksCounts}],
+					backgroundColor: [
+						'rgba(255, 99, 132, 0.2)',
+						'rgba(54, 162, 235, 0.2)',
+						'rgba(255, 206, 86, 0.2)',
+						'rgba(75, 192, 192, 0.2)',
+						'rgba(153, 102, 255, 0.2)',
+						'rgba(255, 159, 64, 0.2)',
+						'rgba(75, 130, 130, 0.2)',
+						'rgba(153, 102, 140, 0.2)',
+						'rgba(255, 140, 64, 0.2)'
+					],
+					borderColor: [
+						'rgba(255, 99, 132, 1)',
+						'rgba(54, 162, 235, 1)',
+						'rgba(255, 206, 86, 1)',
+						'rgba(75, 192, 192, 1)',
+						'rgba(153, 102, 255, 1)',
+						'rgba(255, 159, 64, 1)',
+						'rgba(75, 130, 130, 1)',
+						'rgba(153, 102, 140, 1)',
+						'rgba(255, 140, 64, 1)'
+					],
+					borderWidth: 1
+				}]
+			},
+			options: {
+				scales: {
+					yAxes: [{
+						ticks: {
+							beginAtZero: true
+						}
+					}]
+				}
+			}
+		});
+		</script>
+	`
+	return html
 }
 
 // Return HTML for start page
@@ -215,7 +279,7 @@ app.get("/", (req, res) => {
 		const popular = values[1]
 
 		const booksHtml = books.result
-		.map(b => `<a href='books/${b}'>${b}</a>`)
+		.map(b => `<a href='books/${b.id}'>${b.title}</a>`)
 		.join(", ")
 
 
@@ -226,9 +290,10 @@ app.get("/", (req, res) => {
 		const html = `
 			<h1>Top ${10} Missions</h1>		
 			<p>
-				<ol style="margin-left: 2em;"> ${popularHtml} </ol> 
-			</p>
-			<h1><font color='#808080'>All Books</font></h1><p> ${booksHtml} </p>`
+				${createPopularTableHTML(popular)}
+			<p>
+			<h1><font color='#808080'>All Books</font></h1><p> ${booksHtml} </p>
+			`
 		sendResponse(res, html)
 
 
@@ -272,9 +337,9 @@ async function getBook(book) {
 	} else {
 		console.log(`Cache miss for key=${key}, querying database`)
 
-		let data = (await executeQuery(query, [book])).fetchOne()
-		if (data) {
-			let result = { id: data[0], title: data[1], authors: data[2] }
+		let row = (await executeQuery(query, [book])).fetchOne()
+		if (row) {
+			let result = {id: row[0], title: row[1], author: row[2], rating: row[3],isbn: row[4],language: row[5],pages: row[6],date: row[7],publisher: row[8]}
 			console.log(`Got result=${result}, storing in cache`)
 			if (memcached)
 				await memcached.set(key, result, cacheTimeSecs);

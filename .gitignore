@@ -4,3 +4,4 @@ k3s.yaml
 .terraform.lock.hcl
 terraform.tfstate.backup
 terraform.tfstate
+/node_modules/*

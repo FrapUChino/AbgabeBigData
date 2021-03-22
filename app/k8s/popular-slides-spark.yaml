@@ -157,7 +157,7 @@ data:
           /usr/local/hadoop/share/hadoop/yarn/*,
           /usr/local/hadoop/share/hadoop/yarn/lib/*
         </value>
-      </property>
+      </property> 
     </configuration>
 
 ---

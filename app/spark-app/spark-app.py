@@ -53,7 +53,7 @@ trackingMessages = kafkaMessages.select(
     .withWatermark("parsed_timestamp", windowDuration)
 
 # Example Part 4
-# Compute most popular slides
+# Compute most popular books
 popular = trackingMessages.groupBy(
     window(
         column("parsed_timestamp"),
