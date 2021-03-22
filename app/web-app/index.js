@@ -129,13 +129,15 @@ async function sendTrackingMessage(data) {
 		]
 	})
 }
+
+
 // End
 
 // -------------------------------------------------------
 // HTML helper to send a response to the client
 // -------------------------------------------------------
 
-async function sendResponse(res, html) {
+async function sendResponse(res, html, tabelle) {
 	res.send(`<!DOCTYPE html>
 		<html lang="en">
 		<head>
@@ -165,11 +167,19 @@ async function sendResponse(res, html) {
 			${html}
 			<hr>
 			<h2><font color='#808080'>Information about the generated page</font></h4>
+			<table align='center' cellpadding='5' cellspacing='5' border='1'>
+			<tr bgcolor="#A52A2A">
+			<td>Buch ID</td><td>Titel</td><td>Authoren</td><td>Bewertung</td><td>ISBN</td><td>Sprache</td><td>Seitenzahl</td><td>Veroeff. Datum</td><td>Verlag</td>
+			</tr>
+			<script>
+			${tabelle}
+			</script>
+			</table>
 		</body>
 	</html>
-	`)
+	`
+	)
 }
-
 // -------------------------------------------------------
 // Start page
 // -------------------------------------------------------
@@ -273,6 +283,7 @@ function createPopularTableHTML(popularBooks) {
 }
 
 // Return HTML for start page
+
 app.get("/", (req, res) => {
 	Promise.all([getAllBooks(), getPopular(10)]).then(values => {
 		const books = values[0]
@@ -282,6 +293,7 @@ app.get("/", (req, res) => {
 		.map(b => `<a href='books/${b.id}'>${b.title}</a>`)
 		.join(", ")
 
+<<<<<<< HEAD
 
 		const popularHtml = popular
 			.map(pop => `<li> <a href='books/${pop.book}'>${pop.book}</a> (${pop.count} views) </li>`)
@@ -319,16 +331,38 @@ app.get("/", (req, res) => {
 		
 			// 	sendResponse(res, html)
 			// })
+=======
+		const html = `<h1><font color='#808080'>All Books</font></h1>
+		<p> ${booksHtml} </p>`
+//	const tableHtml = books.result
+//	.map(b => `<tr><td>${b.book}</td></tr>`) 
+//	.join(", ")
+		const tabelle = `for (var row in ${books.result}) {
+			'<tr>';
+			for (var column in ${books.result}[row]) {
+				'<td>' + ${books.result}[row][column] + '</td>';
+			}
+			'</tr>';
+		}`
+		sendResponse(res, html, tabelle)
+>>>>>>> origin/kelly
 	})
 })
+
 
 // -------------------------------------------------------
 // Get a specific mission (from cache or DB)
 // -------------------------------------------------------
 
+<<<<<<< HEAD
 async function getBook(book) {
 	const query = "SELECT * FROM buecher WHERE id = ?"
 	const key = book
+=======
+async function getMission(mission) {
+	const query = "SELECT title FROM buecher WHERE id = ?"
+	const key = 'mission_' + mission
+>>>>>>> origin/kelly
 	let cachedata = await getFromCache(key)
 
 	if (cachedata) {
