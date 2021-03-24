@@ -8,7 +8,6 @@ dbSchema = 'popular'
 windowDuration = '5 minutes'
 slidingDuration = '1 minute'
 
-# Example Part 1
 # Create a spark session
 spark = SparkSession.builder \
     .appName("Structured Streaming").getOrCreate()
@@ -16,7 +15,6 @@ spark = SparkSession.builder \
 # Set log level
 spark.sparkContext.setLogLevel('WARN')
 
-# Example Part 2
 # Read messages from Kafka
 kafkaMessages = spark \
     .readStream \
@@ -33,7 +31,7 @@ trackingMessageSchema = StructType() \
     .add("author", StringType()) \
     .add("timestamp", IntegerType())
 
-# Example Part 3
+
 # Convert value: binary -> JSON -> fields + parsed timestamp
 trackingMessages = kafkaMessages.select(
     # Extract 'value' from Kafka message (i.e., the tracking data)
@@ -54,7 +52,6 @@ trackingMessages = kafkaMessages.select(
     .withColumnRenamed('json.author', 'author') \
     .withWatermark("parsed_timestamp", windowDuration)
 
-# Example Part 4
 # Compute most popular books
 popular = trackingMessages.groupBy(
     window(
@@ -65,6 +62,7 @@ popular = trackingMessages.groupBy(
     column("id")
 ).count().withColumnRenamed('count', 'views')
 
+# Compute most popular authors
 popularAuthors = trackingMessages.groupBy(
         window(
             column("parsed_timestamp"),
@@ -74,8 +72,7 @@ popularAuthors = trackingMessages.groupBy(
         column("author")
     ).count().withColumnRenamed('count', 'views')
 
-# Example Part 5
-# Start running the query; print running counts to the console
+# Start running the query for books; print running counts to the console
 consoleDump = popular \
     .writeStream \
     .trigger(processingTime=slidingDuration) \
@@ -84,6 +81,7 @@ consoleDump = popular \
     .option("truncate", "false") \
     .start()
 
+# Start running the query for authors; print running counts to the console
 consoleDump2 = popularAuthors \
     .writeStream \
     .trigger(processingTime=slidingDuration) \
@@ -91,8 +89,6 @@ consoleDump2 = popularAuthors \
     .format("console") \
     .option("truncate", "false") \
     .start()
-
-# Example Part 6
 
 
 def saveToDatabase(batchDataframe, batchId):
@@ -130,7 +126,6 @@ def saveAuthorsToDatabase(batchDataframe, batchId):
 
     # Perform batch UPSERTS per data partition
     batchDataframe.foreachPartition(save_to_db)
-# Example Part 7
 
 
 dbInsertStream = popular.writeStream \

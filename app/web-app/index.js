@@ -398,7 +398,7 @@ app.get("/:entity?", (req, res) => {
 					)
 			
 			const tabelle = `
-			<table align='center' cellpadding='5' cellspacing='5' border='1'>
+			<table bgcolor='#cd5c5c' align='center' cellpadding='5' cellspacing='5' border='1'>
 				<tr bgcolor="#A52A2A">
 					<td>Buch ID</td><td>Titel</td><td>Authoren</td><td>Bewertung</td><td>ISBN</td><td>Sprache</td><td>Seitenzahl</td><td>Veroeff. Datum</td><td>Verlag</td>
 				</tr>

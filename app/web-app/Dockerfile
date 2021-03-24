@@ -1,5 +1,4 @@
 FROM node:slim
-LABEL maintainer="Dennis Pfisterer, http://dennis-pfisterer.de"
 
 # Set node environment, either development or production
 ARG NODE_ENV=production
