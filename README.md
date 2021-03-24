@@ -4,8 +4,9 @@ Install k3s on OpenStack
 Requirements
 ------------
 
--	[Terraform](https://www.terraform.io/downloads.html) 0.12.x
+-	[Terraform](https://www.terraform.io/downloads.html)
 -	[Ansible](https://www.ansible.com)
+-	[Skaffold](https://skaffold.dev/)
 
 
 Apply the cluster
