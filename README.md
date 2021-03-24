@@ -1,7 +1,6 @@
 Install k3s on OpenStack
 ============================
 
-
 Requirements
 ------------
 
@@ -9,23 +8,36 @@ Requirements
 -	[Ansible](https://www.ansible.com)
 
 
+Apply the cluster
+------------
+
+Set all relevant variables i.e. password, login, names
+
+AppOnOpenStack/k3s.tf:
+
+```yaml
+ user_name = "someLogin"
+        password = "somePW"
+        auth_url = "http://xyz/v3"
+        domain_name = "default"
+        tenant_id = "1eee05cb3a2c4ayf9b93d79359e2r471 "
+}
+
 ```
 
-Apply the whole thing
----------------------------
-
-fürs erste:
-
-- var-Namen wie Passwort, Login, Netzwerk etc. ersetzen
-- export ANSIBLE_HOST_KEY_CHECKING=false
 ```bash
+export ANSIBLE_HOST_KEY_CHECKING=false
 terraform apply
 ansible-playbook -i hosts deploy.yaml
 ```
 
---> deployed k3s cluster, aber nicht die App
+**Thats all to deploy the cluster.**
 
-set kubectl to remote
+
+
+Work locally with remote cluster
+------------
+
 on remote:
 
 ```bash
@@ -40,16 +52,21 @@ Copy k3s.yaml from server:
 scp  ubuntu@MASTER_IP:/etc/rancher/k3s/k3s.yaml .
 ```
 
- "change ip to floatingIp" inside local copy of k3s.yaml"
- add" insecure-skip-tls-verify: true" inside k3s.yaml
- 
-export Variable KUBECONFIG:
-
-```sh
-export KUBECONFIG=/Users/lukas/Documents/Hochschule/S7/BigData/PfisterersAppOnOpenStack/k3s.yaml
+```yaml
+- cluster:
+    insecure-skip-tls-verify: true
+    certificate-authority-data: myCertificate
+    server: https://myIP:6443
+  name: default
 ```
 
-## Prerequisites
+
+```sh
+export KUBECONFIG=MyPathTo/k3s.yaml
+```
+
+Prerequisites
+------------
 
 A running Strimzi.io Kafka operator
 
@@ -66,11 +83,9 @@ helm repo add stable https://charts.helm.sh/stable
 helm install --namespace=default --set hdfs.dataNode.replicas=3 --set yarn.nodeManager.replicas=3 --set hdfs.webhdfs.enabled=true my-hadoop-cluster stable/hadoop
 ```
 
-Skaffold: 
+Skaffold:
 
 ```bash
 change default repo: skaffold config set --global default-repo <myrepo>
-
+skaffold dev
 ```
-
-
