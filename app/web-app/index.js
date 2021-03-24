@@ -167,12 +167,7 @@ async function sendResponse(res, html, tabelle) {
 			${html}
 			<hr>
 			<h2><font color='#808080'>Information about the generated page</font></h4>
-			<table align='center' cellpadding='5' cellspacing='5' border='1'>
-			<tr bgcolor="#A52A2A">
-			<td>Buch ID</td><td>Titel</td><td>Authoren</td><td>Bewertung</td><td>ISBN</td><td>Sprache</td><td>Seitenzahl</td><td>Veroeff. Datum</td><td>Verlag</td>
-			</tr>
 			${tabelle}
-			</table>
 		</body>
 	</html>
 	`
@@ -198,7 +193,7 @@ async function getAllBooks() {
 		let data = executeResult.fetchAll()
 		if (data) {
 			let result = data.map(row => ({id: row[0], title: row[1], author: row[2], rating: row[3],isbn: row[4],language: row[5],pages: row[6],date: row[7],publisher: row[8]}))
-			console.log(`Got result=${result}, storing in cache`)
+			console.log(`Got result=${result.id}, storing in cache`)
 			if (memcached)
 				await memcached.set(key, result, cacheTimeSecs);
 			return { result, cached: false }
@@ -216,8 +211,14 @@ async function getPopular(maxCount) {
 		.map(row => ({ book: row[0], count: row[1] }))
 }
 
-function createPopularTableHTML(popularBooks) {
+async function getPopularAuthors(maxCount) {
+	const query = "SELECT author,count FROM popularAuthors ORDER BY count DESC LIMIT ?"
+	return (await executeQuery(query, [maxCount]))
+		.fetchAll()
+		.map(row => ({ author: row[0], count: row[1] }))
+}
 
+function createPopularTableHTML(popularBooks) {
 	popularBooksNames= popularBooks
 	.map(pop => {
 		return pop.book
@@ -230,10 +231,10 @@ function createPopularTableHTML(popularBooks) {
 
 	const html = `
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.min.js"></script>
-		<canvas id="myChart" width="200px" height="200px"></canvas>
+		<canvas id="bookChart"  style="width: 70%; height: 70%;"></canvas>
 		<script>
-		var ctx = document.getElementById('myChart').getContext('2d');
-		var myChart = new Chart(ctx, {
+		var ctx = document.getElementById('bookChart').getContext('2d');
+		var bookChart = new Chart(ctx, {
 			type: 'bar',
 			data: {
 				labels: [${popularBooksNames}],
@@ -269,7 +270,8 @@ function createPopularTableHTML(popularBooks) {
 				scales: {
 					yAxes: [{
 						ticks: {
-							beginAtZero: true
+							beginAtZero: true,
+							stepSize: 1
 						}
 					}]
 				}
@@ -280,42 +282,133 @@ function createPopularTableHTML(popularBooks) {
 	return html
 }
 
-// Return HTML for start page
+function createPopularAuthorsHtml(popAuthors) {
+	popularAuthorsNames= popAuthors
+	.map(pop => {
+		return "'"+pop.author.toString()+"'"
+	})
 
-app.get("/", (req, res) => {
-	Promise.all([getAllBooks(), getPopular(10)]).then(values => {
+	popularAuthorCounts= popAuthors
+	.map(pop => {
+		return pop.count
+	})
+
+	const html = `
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.min.js"></script>
+		<canvas id="authorsChart" style="width: 70%; height: 70%;"></canvas>
+		<script>
+		var ctx = document.getElementById('authorsChart').getContext('2d');
+		var authorsChart = new Chart(ctx, {
+			type: 'bar',
+			data: {
+				labels: [${popularAuthorsNames}],
+				datasets: [{
+					label: 'Popular Authors',
+					data: [${popularAuthorCounts}],
+					backgroundColor: [
+						'rgba(255, 99, 132, 0.2)',
+						'rgba(54, 162, 235, 0.2)',
+						'rgba(255, 206, 86, 0.2)',
+						'rgba(75, 192, 192, 0.2)',
+						'rgba(153, 102, 255, 0.2)',
+						'rgba(255, 159, 64, 0.2)',
+						'rgba(75, 130, 130, 0.2)',
+						'rgba(153, 102, 140, 0.2)',
+						'rgba(255, 140, 64, 0.2)'
+					],
+					borderColor: [
+						'rgba(255, 99, 132, 1)',
+						'rgba(54, 162, 235, 1)',
+						'rgba(255, 206, 86, 1)',
+						'rgba(75, 192, 192, 1)',
+						'rgba(153, 102, 255, 1)',
+						'rgba(255, 159, 64, 1)',
+						'rgba(75, 130, 130, 1)',
+						'rgba(153, 102, 140, 1)',
+						'rgba(255, 140, 64, 1)'
+					],
+					borderWidth: 1
+				}]
+			},
+			options: {
+				scales: {
+					yAxes: [{
+						ticks: {
+							beginAtZero: true,
+							stepSize: 1
+						}
+					}]
+				}
+			}
+		});
+		</script>
+	`
+	return html
+
+}
+
+// Return HTML for start page
+app.get("/:entity?", (req, res) => {
+	Promise.all([getAllBooks(), getPopular(10),getPopularAuthors(10)]).then(values => {
+		const entity = req.params.entity
 		const books = values[0]
 		const popular = values[1]
+		const popularAuthors = values[2]
 
-		// const booksHtml = books.result
-		// .map(b => `<a href='books/${b.id}'>${b.title}</a>`)
-		// .join(", ")
+		const popAuthors = popularAuthors
+			.map(author => ({author: author.author, views: author.count}))
+
+		popAuthors.forEach(author => console.log(author.author+" "+author.views))
 
 		const popularHtml = popular
 			.map(pop => `<li> <a href='books/${pop.book}'>${pop.book}</a> (${pop.count} views) </li>`)
 			.join("\n")
 
-			const html = `
-			<h1>Top ${10} Missions</h1>		
-			<p>
+			var html;
+			if(entity && entity == 'authors') {
+				html = `
+				<h1>Top Authors</h1>
+				<p>
+				${createPopularAuthorsHtml(popularAuthors)}
+				<p>
+				<a href="/">Show most popular books</a>	
+				`
+			} else {
+				html = `
+				<h1>Top ${10} Books</h1>
+				<p>
 				${createPopularTableHTML(popular)}
-			<p>
-			`
-			const tabelle = books.result
+				<p>
+				<a href="/authors">Show popular authors</a>			
+				`
+			}
+
+			const innerTabelle = books.result
 				.map(b => `<tr>
-						<td>${b.id}</td>
-						<td><a href='books/${b.id}'/>${b.title}</a></td>
-						<td>${b.author}</td>
-						<td>${b.rating}</td>
-						<td>${b.isbn}</td>
-						<td>${b.language}</td>
-						<td>${b.pages}</td>
-						<td>${b.date}</td>
-						<td>${b.publisher}</td>
-						</tr>`) 
-					sendResponse(res, html, tabelle)
+							<td>${b.id}</td>
+							<td><a href='books/${b.id}'/>${b.title}</a></td>
+							<td>${b.author}</td>
+							<td>${b.rating}</td>
+							<td>${b.isbn}</td>
+							<td>${b.language}</td>
+							<td>${b.pages}</td>
+							<td>${b.date}</td>
+							<td>${b.publisher}</td>
+						</tr>`
+					)
+			
+			const tabelle = `
+			<table align='center' cellpadding='5' cellspacing='5' border='1'>
+				<tr bgcolor="#A52A2A">
+					<td>Buch ID</td><td>Titel</td><td>Authoren</td><td>Bewertung</td><td>ISBN</td><td>Sprache</td><td>Seitenzahl</td><td>Veroeff. Datum</td><td>Verlag</td>
+				</tr>
+				${innerTabelle}
+			</table>
+			`
+			sendResponse(res, html, tabelle)
 	})
 })
+
 
 
 // -------------------------------------------------------
@@ -349,15 +442,16 @@ async function getBook(book) {
 app.get("/books/:book", (req, res) => {
 	let book = req.params["book"]
 
+	// Send reply to browser
+	getBook(book).then(data => {
 	// Send the tracking message to Kafka
 	sendTrackingMessage({
-		book,
+		id: data.id,
+		author: data.author,
 		timestamp: Math.floor(new Date() / 1000)
 	}).then(() => console.log("Sent to kafka"))
 		.catch(e => console.log("Error sending to kafka", e))
 
-	// Send reply to browser
-	getBook(book).then(data => {
 		sendResponse(res, `<h1>${data.title}</h1><p>${data.authors}</p>`,
 			data.cached
 		)

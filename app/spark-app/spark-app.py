@@ -29,7 +29,8 @@ kafkaMessages = spark \
 
 # Define schema of tracking data
 trackingMessageSchema = StructType() \
-    .add("book", StringType()) \
+    .add("id", StringType()) \
+    .add("author", StringType()) \
     .add("timestamp", IntegerType())
 
 # Example Part 3
@@ -49,7 +50,8 @@ trackingMessages = kafkaMessages.select(
     # Select all JSON fields
     column("json.*")
 ) \
-    .withColumnRenamed('json.book', 'book') \
+    .withColumnRenamed('json.id', 'id') \
+    .withColumnRenamed('json.author', 'author') \
     .withWatermark("parsed_timestamp", windowDuration)
 
 # Example Part 4
@@ -60,12 +62,29 @@ popular = trackingMessages.groupBy(
         windowDuration,
         slidingDuration
     ),
-    column("book")
+    column("id")
 ).count().withColumnRenamed('count', 'views')
+
+popularAuthors = trackingMessages.groupBy(
+        window(
+            column("parsed_timestamp"),
+            windowDuration,
+            slidingDuration
+        ),
+        column("author")
+    ).count().withColumnRenamed('count', 'views')
 
 # Example Part 5
 # Start running the query; print running counts to the console
 consoleDump = popular \
+    .writeStream \
+    .trigger(processingTime=slidingDuration) \
+    .outputMode("update") \
+    .format("console") \
+    .option("truncate", "false") \
+    .start()
+
+consoleDump2 = popularAuthors \
     .writeStream \
     .trigger(processingTime=slidingDuration) \
     .outputMode("update") \
@@ -88,13 +107,29 @@ def saveToDatabase(batchDataframe, batchId):
             sql = session.sql("INSERT INTO popular "
                               "(book, count) VALUES (?, ?) "
                               "ON DUPLICATE KEY UPDATE count=?")
-            sql.bind(row.book, row.views, row.views).execute()
+            sql.bind(row.id, row.views, row.views).execute()
+            print("Wrote popular books to database: ",row.id)
+        session.close()
+    # Perform batch UPSERTS per data partition
+    batchDataframe.foreachPartition(save_to_db)
 
+def saveAuthorsToDatabase(batchDataframe, batchId):
+    # Define function to save a dataframe to mysql
+    def save_to_db(iterator):
+        # Connect to database and use schema
+        session = mysqlx.get_session(dbOptions)
+        session.sql("USE popular").execute()
+        for row in iterator:
+            # Run upsert (insert or update existing)
+            sql = session.sql("INSERT INTO popularAuthors "
+                              "(author, count) VALUES (?, ?) "
+                              "ON DUPLICATE KEY UPDATE count=?")
+            sql.bind(row.author, row.views, row.views).execute()
+            print("Wrote popular authors to database: ",row.author)
         session.close()
 
     # Perform batch UPSERTS per data partition
     batchDataframe.foreachPartition(save_to_db)
-
 # Example Part 7
 
 
@@ -103,6 +138,13 @@ dbInsertStream = popular.writeStream \
     .outputMode("update") \
     .foreachBatch(saveToDatabase) \
     .start()
+
+dbInsertStream2 = popularAuthors.writeStream \
+    .trigger(processingTime=slidingDuration) \
+    .outputMode("update") \
+    .foreachBatch(saveAuthorsToDatabase) \
+    .start()
+
 
 # Wait for termination
 spark.streams.awaitAnyTermination()
