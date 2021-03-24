@@ -5,3 +5,4 @@ k3s.yaml
 terraform.tfstate.backup
 terraform.tfstate
 /node_modules/*
+hosts_own
