@@ -83,7 +83,7 @@ helm repo add stable https://charts.helm.sh/stable
 helm install --namespace=default --set hdfs.dataNode.replicas=3 --set yarn.nodeManager.replicas=3 --set hdfs.webhdfs.enabled=true my-hadoop-cluster stable/hadoop
 ```
 
-Skaffold:
+Develop:
 
 ```bash
 change default repo: skaffold config set --global default-repo <myrepo>
