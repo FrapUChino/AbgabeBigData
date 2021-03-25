@@ -7,11 +7,11 @@ terraform {
 }
 
 provider "openstack" {
-        user_name = "pfisterer-hb20"
-        password = "hb-cloud"
+        user_name = ""
+        password = ""
         auth_url = "http://controller.4c.dhbw-mannheim.de:5000/v3"
         domain_name = "default"
-        tenant_id = "1eee05cb3a2c4a3f9b93d79359e20471"
+        tenant_id = ""
 }
 
 resource "openstack_compute_instance_v2" "abgabe_k3s_master" {
@@ -19,7 +19,7 @@ resource "openstack_compute_instance_v2" "abgabe_k3s_master" {
   image_id = "a0a1c616-f4f3-429d-8de9-8e74b5df805c"
   flavor_name = "m1.large"
   security_groups = ["default"]
-  key_pair = "LukasRSA"
+  key_pair = ""
 
   network {
           name = "lukas_network"
