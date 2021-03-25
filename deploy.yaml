@@ -1,9 +1,3 @@
-#checkin
-# - hosts: all
-#   gather_facts: False
-#   tasks:
-#     - name: set system hostname
-#       command: hostnamectl set-hostname {{ inventory_hostname }}
 
 - hosts: masters
   user: ubuntu
@@ -18,12 +12,6 @@
       raw: while ! test -f /var/lib/cloud/instance/boot-finished; do sleep 5s; done
       retries: 5
       delay: 1
-
-    # - name: Python3 verfügabr
-    #   raw: test -e /usr/bin/python3 || (apt -y update && apt install -y python3)
-
-    # - name: Python als /usr/bin/python3 existiert
-    #   raw: if [ -f /usr/bin/python3 ] && [ ! -f /usr/bin/python ]; then ln -s /usr/bin/python3 /usr/bin/python; fi
 
 #Install k3s on master
 - hosts: masters
@@ -65,50 +53,4 @@
       environment:
         k3s_url: "{{groups['masters'][0]}}:6443"
         k3s_token: "{{ master_token }}"
-
-# Install helm
-# add repos
-# apply stuff in README
-#install docker
-  #docker login
-# install skaffold
-  #set skaffold repo
-# deploy app
-    # - name: copy server.js
-    #   copy:
-    #     src: /Users/lukas/Documents/Hochschule/S7/BigData/App/server.js
-    #     dest: /home/ubuntu/app
-    #     mode: '0644'
-
-    # - name: copy package.json
-    #   copy:
-    #     src: /Users/lukas/Documents/Hochschule/S7/BigData/App/package.json
-    #     dest: /home/ubuntu/app
-    #     mode: '0644'
-
-    # - name: Install packages based on package.json
-    #   community.general.npm:
-    #     path: /Users/lukas/Documents/Hochschule/S7/BigData/App
-    #     state: present
-
-    # - name: Stop App
-    #   # ignore_errors: yes
-    #   # no_log: True
-    #   command:
-    #     chdir: /home/ubuntu/app/
-    #     cmd: pm2 -s stop app
-
-    # - name: Start App
-    #   command:
-    #     chdir: /home/ubuntu/app/
-    #     cmd: pm2 -s start server.js --name app
-
-        
-#ansible-playbook -i hosts deploy.yaml
-
-
-
-
-
-
 

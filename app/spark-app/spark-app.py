@@ -8,7 +8,6 @@ dbSchema = 'popular'
 windowDuration = '5 minutes'
 slidingDuration = '1 minute'
 
-# Example Part 1
 # Create a spark session
 spark = SparkSession.builder \
     .appName("Structured Streaming").getOrCreate()
@@ -16,7 +15,6 @@ spark = SparkSession.builder \
 # Set log level
 spark.sparkContext.setLogLevel('WARN')
 
-# Example Part 2
 # Read messages from Kafka
 kafkaMessages = spark \
     .readStream \
@@ -29,10 +27,11 @@ kafkaMessages = spark \
 
 # Define schema of tracking data
 trackingMessageSchema = StructType() \
-    .add("mission", StringType()) \
+    .add("id", StringType()) \
+    .add("author", StringType()) \
     .add("timestamp", IntegerType())
 
-# Example Part 3
+
 # Convert value: binary -> JSON -> fields + parsed timestamp
 trackingMessages = kafkaMessages.select(
     # Extract 'value' from Kafka message (i.e., the tracking data)
@@ -49,22 +48,31 @@ trackingMessages = kafkaMessages.select(
     # Select all JSON fields
     column("json.*")
 ) \
-    .withColumnRenamed('json.mission', 'mission') \
+    .withColumnRenamed('json.id', 'id') \
+    .withColumnRenamed('json.author', 'author') \
     .withWatermark("parsed_timestamp", windowDuration)
 
-# Example Part 4
-# Compute most popular slides
+# Compute most popular books
 popular = trackingMessages.groupBy(
     window(
         column("parsed_timestamp"),
         windowDuration,
         slidingDuration
     ),
-    column("mission")
+    column("id")
 ).count().withColumnRenamed('count', 'views')
 
-# Example Part 5
-# Start running the query; print running counts to the console
+# Compute most popular authors
+popularAuthors = trackingMessages.groupBy(
+        window(
+            column("parsed_timestamp"),
+            windowDuration,
+            slidingDuration
+        ),
+        column("author")
+    ).count().withColumnRenamed('count', 'views')
+
+# Start running the query for books; print running counts to the console
 consoleDump = popular \
     .writeStream \
     .trigger(processingTime=slidingDuration) \
@@ -73,7 +81,14 @@ consoleDump = popular \
     .option("truncate", "false") \
     .start()
 
-# Example Part 6
+# Start running the query for authors; print running counts to the console
+consoleDump2 = popularAuthors \
+    .writeStream \
+    .trigger(processingTime=slidingDuration) \
+    .outputMode("update") \
+    .format("console") \
+    .option("truncate", "false") \
+    .start()
 
 
 def saveToDatabase(batchDataframe, batchId):
@@ -86,16 +101,31 @@ def saveToDatabase(batchDataframe, batchId):
         for row in iterator:
             # Run upsert (insert or update existing)
             sql = session.sql("INSERT INTO popular "
-                              "(mission, count) VALUES (?, ?) "
+                              "(book, count) VALUES (?, ?) "
                               "ON DUPLICATE KEY UPDATE count=?")
-            sql.bind(row.mission, row.views, row.views).execute()
+            sql.bind(row.id, row.views, row.views).execute()
+            print("Wrote popular books to database: ",row.id)
+        session.close()
+    # Perform batch UPSERTS per data partition
+    batchDataframe.foreachPartition(save_to_db)
 
+def saveAuthorsToDatabase(batchDataframe, batchId):
+    # Define function to save a dataframe to mysql
+    def save_to_db(iterator):
+        # Connect to database and use schema
+        session = mysqlx.get_session(dbOptions)
+        session.sql("USE popular").execute()
+        for row in iterator:
+            # Run upsert (insert or update existing)
+            sql = session.sql("INSERT INTO popularAuthors "
+                              "(author, count) VALUES (?, ?) "
+                              "ON DUPLICATE KEY UPDATE count=?")
+            sql.bind(row.author, row.views, row.views).execute()
+            print("Wrote popular authors to database: ",row.author)
         session.close()
 
     # Perform batch UPSERTS per data partition
     batchDataframe.foreachPartition(save_to_db)
-
-# Example Part 7
 
 
 dbInsertStream = popular.writeStream \
@@ -103,6 +133,13 @@ dbInsertStream = popular.writeStream \
     .outputMode("update") \
     .foreachBatch(saveToDatabase) \
     .start()
+
+dbInsertStream2 = popularAuthors.writeStream \
+    .trigger(processingTime=slidingDuration) \
+    .outputMode("update") \
+    .foreachBatch(saveAuthorsToDatabase) \
+    .start()
+
 
 # Wait for termination
 spark.streams.awaitAnyTermination()

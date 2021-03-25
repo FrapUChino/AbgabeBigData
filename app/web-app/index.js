@@ -8,7 +8,7 @@ const express = require('express')
 
 const app = express()
 const cacheTimeSecs = 15
-const numberOfMissions = 30
+const numberOfBooks = 140
 
 // -------------------------------------------------------
 // Command-line options
@@ -129,59 +129,57 @@ async function sendTrackingMessage(data) {
 		]
 	})
 }
+
+
 // End
 
 // -------------------------------------------------------
 // HTML helper to send a response to the client
 // -------------------------------------------------------
 
-function sendResponse(res, html, cachedResult) {
+async function sendResponse(res, html, tabelle) {
 	res.send(`<!DOCTYPE html>
 		<html lang="en">
 		<head>
 			<meta charset="UTF-8">
 			<meta name="viewport" content="width=device-width, initial-scale=1.0">
-			<title>Big Data Use-Case Demo</title>
+			<title>Big Data App Booklist</title>
 			<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/mini.css/3.0.1/mini-default.min.css">
 			<script>
-				function fetchRandomMissions() {
-					const maxRepetitions = Math.floor(Math.random() * 200)
-					document.getElementById("out").innerText = "Fetching " + maxRepetitions + " random missions, see console output"
-					for(var i = 0; i < maxRepetitions; ++i) {
-						const missionId = Math.floor(Math.random() * ${numberOfMissions})
-						console.log("Fetching mission id " + missionId)
-						fetch("/missions/sts-" + missionId, {cache: 'no-cache'})
-					}
+			function fetchRandomBooks() {
+				const maxRepetitions = 10
+				document.getElementById("out").innerText = "Fetching " + maxRepetitions + " random books, see console output"
+				for(var i = 0; i < maxRepetitions; ++i) {
+					const booksId = Math.floor(Math.random() * ${numberOfBooks})
+					console.log("Fetching Book id " + booksId)
+					fetch("/books/"+booksId, {cache: 'no-cache'})
 				}
-			</script>
+			}
+		</script>
 		</head>
-		<body>
-			<h1>Big Data Use Case Demo</h1>
+		<body style='background-color:#DCDCDC;'>
+			<h1 align='center'><font color='#2f4f4f'><strong>List of Bestseller-Books</strong></font></h1>
+			<h3 align='center'><font color='#808080'>by Lukas & Kelly for Cloud & BigData course - the dataset is from kaggle.com</font ></h3>
 			<p>
-				<a href="javascript: fetchRandomMissions();">Randomly fetch some missions</a>
+				<a href="javascript: fetchRandomBooks();">Randomly fetch some Books</a>
 				<span id="out"></span>
 			</p>
 			${html}
 			<hr>
-			<h2>Information about the generated page</h4>
-			<ul>
-				<li>Server: ${os.hostname()}</li>
-				<li>Date: ${new Date()}</li>
-				<li>Using ${memcachedServers.length} memcached Servers: ${memcachedServers}</li>
-				<li>Cached result: ${cachedResult}</li>
-			</ul>
+			<h2><font color='#808080'>Information about the generated page</font></h4>
+			${tabelle}
 		</body>
 	</html>
-	`)
+	`
+	)
 }
-
 // -------------------------------------------------------
 // Start page
 // -------------------------------------------------------
 
-// Get list of missions (from cache or db)
-async function getMissions() {
-	const key = 'missions'
+// Get list of books (from cache or db)
+async function getAllBooks() {
+	const key = 'buecher'
 	let cachedata = await getFromCache(key)
 
 	if (cachedata) {
@@ -189,62 +187,239 @@ async function getMissions() {
 		return { result: cachedata, cached: true }
 	} else {
 		console.log(`Cache miss for key=${key}, querying database`)
-		let executeResult = await executeQuery("SELECT mission FROM missions", [])
+		let executeResult = await executeQuery("SELECT * FROM buecher;", [])
 		let data = executeResult.fetchAll()
 		if (data) {
-			let result = data.map(row => row[0])
-			console.log(`Got result=${result}, storing in cache`)
+			let result = data.map(row => ({id: row[0], title: row[1], author: row[2], rating: row[3],isbn: row[4],language: row[5],pages: row[6],date: row[7],publisher: row[8]}))
+			console.log(`Got result=${result.id}, storing in cache`)
 			if (memcached)
 				await memcached.set(key, result, cacheTimeSecs);
 			return { result, cached: false }
 		} else {
-			throw "No missions data found"
+			throw "No Book data found"
 		}
 	}
 }
 
-// Get popular missions (from db only)
+// Get popular books (from db only)
 async function getPopular(maxCount) {
-	const query = "SELECT mission, count FROM popular ORDER BY count DESC LIMIT ?"
+	const query = "SELECT book,count FROM popular ORDER BY count DESC LIMIT ?"
 	return (await executeQuery(query, [maxCount]))
 		.fetchAll()
-		.map(row => ({ mission: row[0], count: row[1] }))
+		.map(row => ({ book: row[0], count: row[1] }))
 }
 
-// Return HTML for start page
-app.get("/", (req, res) => {
-	const topX = 10;
-	Promise.all([getMissions(), getPopular(topX)]).then(values => {
-		const missions = values[0]
-		const popular = values[1]
+// Get popular authors (from db only)
+async function getPopularAuthors(maxCount) {
+	const query = "SELECT author,count FROM popularAuthors ORDER BY count DESC LIMIT ?"
+	return (await executeQuery(query, [maxCount]))
+		.fetchAll()
+		.map(row => ({ author: row[0], count: row[1] }))
+}
 
-		const missionsHtml = missions.result
-			.map(m => `<a href='missions/${m}'>${m}</a>`)
-			.join(", ")
+// creates a table for the most popular books and displays the results in a chart 
+function createPopularTableHTML(popularBooks) {
+	popularBooksNames= popularBooks
+	.map(pop => {
+		return pop.book
+	})
+
+	popularBooksCounts= popularBooks
+	.map(pop => {
+		return pop.count
+	})
+
+	const html = `
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.min.js"></script>
+		<canvas id="bookChart"  style="width: 70%; height: 70%;"></canvas>
+		<script>
+		var ctx = document.getElementById('bookChart').getContext('2d');
+		var bookChart = new Chart(ctx, {
+			type: 'bar',
+			data: {
+				labels: [${popularBooksNames}],
+				datasets: [{
+					label: 'Popular Books',
+					data: [${popularBooksCounts}],
+					backgroundColor: [
+						'rgba(255, 99, 132, 0.2)',
+						'rgba(54, 162, 235, 0.2)',
+						'rgba(255, 206, 86, 0.2)',
+						'rgba(75, 192, 192, 0.2)',
+						'rgba(153, 102, 255, 0.2)',
+						'rgba(255, 159, 64, 0.2)',
+						'rgba(75, 130, 130, 0.2)',
+						'rgba(153, 102, 140, 0.2)',
+						'rgba(255, 140, 64, 0.2)'
+					],
+					borderColor: [
+						'rgba(255, 99, 132, 1)',
+						'rgba(54, 162, 235, 1)',
+						'rgba(255, 206, 86, 1)',
+						'rgba(75, 192, 192, 1)',
+						'rgba(153, 102, 255, 1)',
+						'rgba(255, 159, 64, 1)',
+						'rgba(75, 130, 130, 1)',
+						'rgba(153, 102, 140, 1)',
+						'rgba(255, 140, 64, 1)'
+					],
+					borderWidth: 1
+				}]
+			},
+			options: {
+				scales: {
+					yAxes: [{
+						ticks: {
+							beginAtZero: true,
+							stepSize: 1
+						}
+					}]
+				}
+			}
+		});
+		</script>
+	`
+	return html
+}
+
+// creates a table for the most popular authors and displays the results in a chart 
+function createPopularAuthorsHtml(popAuthors) {
+	popularAuthorsNames= popAuthors
+	.map(pop => {
+		return "'"+pop.author.toString()+"'"
+	})
+
+	popularAuthorCounts= popAuthors
+	.map(pop => {
+		return pop.count
+	})
+
+	const html = `
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.min.js"></script>
+		<canvas id="authorsChart" style="width: 70%; height: 70%;"></canvas>
+		<script>
+		var ctx = document.getElementById('authorsChart').getContext('2d');
+		var authorsChart = new Chart(ctx, {
+			type: 'bar',
+			data: {
+				labels: [${popularAuthorsNames}],
+				datasets: [{
+					label: 'Popular Authors',
+					data: [${popularAuthorCounts}],
+					backgroundColor: [
+						'rgba(255, 99, 132, 0.2)',
+						'rgba(54, 162, 235, 0.2)',
+						'rgba(255, 206, 86, 0.2)',
+						'rgba(75, 192, 192, 0.2)',
+						'rgba(153, 102, 255, 0.2)',
+						'rgba(255, 159, 64, 0.2)',
+						'rgba(75, 130, 130, 0.2)',
+						'rgba(153, 102, 140, 0.2)',
+						'rgba(255, 140, 64, 0.2)'
+					],
+					borderColor: [
+						'rgba(255, 99, 132, 1)',
+						'rgba(54, 162, 235, 1)',
+						'rgba(255, 206, 86, 1)',
+						'rgba(75, 192, 192, 1)',
+						'rgba(153, 102, 255, 1)',
+						'rgba(255, 159, 64, 1)',
+						'rgba(75, 130, 130, 1)',
+						'rgba(153, 102, 140, 1)',
+						'rgba(255, 140, 64, 1)'
+					],
+					borderWidth: 1
+				}]
+			},
+			options: {
+				scales: {
+					yAxes: [{
+						ticks: {
+							beginAtZero: true,
+							stepSize: 1
+						}
+					}]
+				}
+			}
+		});
+		</script>
+	`
+	return html
+
+}
+
+
+// Return HTML for start page
+app.get("/:entity?", (req, res) => {
+	Promise.all([getAllBooks(), getPopular(10),getPopularAuthors(10)]).then(values => {
+		const entity = req.params.entity
+		const books = values[0]
+		const popular = values[1]
+		const popularAuthors = values[2]
+
+		const popAuthors = popularAuthors
+			.map(author => ({author: author.author, views: author.count}))
+
+		popAuthors.forEach(author => console.log(author.author+" "+author.views))
 
 		const popularHtml = popular
-			.map(pop => `<li> <a href='missions/${pop.mission}'>${pop.mission}</a> (${pop.count} views) </li>`)
+			.map(pop => `<li> <a href='books/${pop.book}'>${pop.book}</a> (${pop.count} views) </li>`)
 			.join("\n")
 
-		const html = `
-			<h1>Top ${topX} Missions</h1>		
-			<p>
-				<ol style="margin-left: 2em;"> ${popularHtml} </ol> 
-			</p>
-			<h1>All Missions</h1>
-			<p> ${missionsHtml} </p>
-		`
-		sendResponse(res, html, missions.cached)
+			var html;
+			if(entity && entity == 'authors') {
+				html = `
+				<h1>Top Authors</h1>
+				<p>
+				${createPopularAuthorsHtml(popularAuthors)}
+				<p>
+				<a href="/">Show most popular books</a>	
+				`
+			} else {
+				html = `
+				<h1>Top ${10} Books</h1>
+				<p>
+				${createPopularTableHTML(popular)}
+				<p>
+				<a href="/authors">Show popular authors</a>			
+				`
+			}
+
+			const innerTabelle = books.result
+				.map(b => `<tr>
+							<td>${b.id}</td>
+							<td><a href='books/${b.id}'/>${b.title}</a></td>
+							<td>${b.author}</td>
+							<td>${b.rating}</td>
+							<td>${b.isbn}</td>
+							<td>${b.language}</td>
+							<td>${b.pages}</td>
+							<td>${b.date}</td>
+							<td>${b.publisher}</td>
+						</tr>`
+					)
+			
+			const tabelle = `
+			<table bgcolor='#cd5c5c' align='center' cellpadding='5' cellspacing='5' border='1'>
+				<tr bgcolor="#A52A2A">
+					<td>Buch ID</td><td>Titel</td><td>Authoren</td><td>Bewertung</td><td>ISBN</td><td>Sprache</td><td>Seitenzahl</td><td>Veroeff. Datum</td><td>Verlag</td>
+				</tr>
+				${innerTabelle}
+			</table>
+			`
+			sendResponse(res, html, tabelle)
 	})
 })
 
+
+
 // -------------------------------------------------------
-// Get a specific mission (from cache or DB)
+// Get a specific book (from cache or DB)
 // -------------------------------------------------------
 
-async function getMission(mission) {
-	const query = "SELECT mission, heading, description FROM missions WHERE mission = ?"
-	const key = 'mission_' + mission
+async function getBook(book) {
+	const query = "SELECT * FROM buecher WHERE id = ?"
+	const key = book
 	let cachedata = await getFromCache(key)
 
 	if (cachedata) {
@@ -253,33 +428,33 @@ async function getMission(mission) {
 	} else {
 		console.log(`Cache miss for key=${key}, querying database`)
 
-		let data = (await executeQuery(query, [mission])).fetchOne()
-		if (data) {
-			let result = { mission: data[0], heading: data[1], description: data[2] }
-			console.log(`Got result=${result}, storing in cache`)
+		let row = (await executeQuery(query, [book])).fetchOne()
+		if (row) {
+			let result = {id: row[0], title: row[1], author: row[2], rating: row[3],isbn: row[4],language: row[5],pages: row[6],date: row[7],publisher: row[8]}
+			console.log(`Got result=${result.id}, storing in cache`)
 			if (memcached)
 				await memcached.set(key, result, cacheTimeSecs);
 			return { ...result, cached: false }
 		} else {
-			throw "No data found for this mission"
+			throw "No data found for this Book"
 		}
 	}
 }
 
-app.get("/missions/:mission", (req, res) => {
-	let mission = req.params["mission"]
+app.get("/books/:book", (req, res) => {
+	let book = req.params["book"]
 
+	// Send reply to browser
+	getBook(book).then(data => {
 	// Send the tracking message to Kafka
 	sendTrackingMessage({
-		mission,
+		id: data.id,
+		author: data.author,
 		timestamp: Math.floor(new Date() / 1000)
 	}).then(() => console.log("Sent to kafka"))
 		.catch(e => console.log("Error sending to kafka", e))
 
-	// Send reply to browser
-	getMission(mission).then(data => {
-		sendResponse(res, `<h1>${data.mission}</h1><p>${data.heading}</p>` +
-			data.description.split("\n").map(p => `<p>${p}</p>`).join("\n"),
+		sendResponse(res, `<h1>${data.title}</h1><p>${data.authors}</p>`,
 			data.cached
 		)
 	}).catch(err => {
