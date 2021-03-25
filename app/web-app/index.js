@@ -177,10 +177,8 @@ async function sendResponse(res, html, tabelle) {
 // Start page
 // -------------------------------------------------------
 
-// Get list of missions (from cache or db)
+// Get list of books (from cache or db)
 async function getAllBooks() {
-	// TODO: make caching work
-
 	const key = 'buecher'
 	let cachedata = await getFromCache(key)
 
@@ -203,7 +201,7 @@ async function getAllBooks() {
 	}
 }
 
-// Get popular missions (from db only)
+// Get popular books (from db only)
 async function getPopular(maxCount) {
 	const query = "SELECT book,count FROM popular ORDER BY count DESC LIMIT ?"
 	return (await executeQuery(query, [maxCount]))
@@ -211,6 +209,7 @@ async function getPopular(maxCount) {
 		.map(row => ({ book: row[0], count: row[1] }))
 }
 
+// Get popular authors (from db only)
 async function getPopularAuthors(maxCount) {
 	const query = "SELECT author,count FROM popularAuthors ORDER BY count DESC LIMIT ?"
 	return (await executeQuery(query, [maxCount]))
@@ -218,6 +217,7 @@ async function getPopularAuthors(maxCount) {
 		.map(row => ({ author: row[0], count: row[1] }))
 }
 
+// creates a table for the most popular books and displays the results in a chart 
 function createPopularTableHTML(popularBooks) {
 	popularBooksNames= popularBooks
 	.map(pop => {
@@ -282,6 +282,7 @@ function createPopularTableHTML(popularBooks) {
 	return html
 }
 
+// creates a table for the most popular authors and displays the results in a chart 
 function createPopularAuthorsHtml(popAuthors) {
 	popularAuthorsNames= popAuthors
 	.map(pop => {
@@ -412,7 +413,7 @@ app.get("/:entity?", (req, res) => {
 
 
 // -------------------------------------------------------
-// Get a specific mission (from cache or DB)
+// Get a specific book (from cache or DB)
 // -------------------------------------------------------
 
 async function getBook(book) {
