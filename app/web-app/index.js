@@ -347,6 +347,7 @@ function createPopularAuthorsHtml(popAuthors) {
 
 }
 
+
 // Return HTML for start page
 app.get("/:entity?", (req, res) => {
 	Promise.all([getAllBooks(), getPopular(10),getPopularAuthors(10)]).then(values => {
