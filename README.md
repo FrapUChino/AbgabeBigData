@@ -8,6 +8,9 @@ Just like in the use case, 10 books can be fetched by clicking on "Randomly fetc
 Depending on the frequency with which a book is called up, a diagram is displayed showing the ID of the book and how often it was called.
 You can also display and visualize the top authors here. "Top authors" are those, whose books are the most clicked ones(f.e. clicking all the Harry Patter Books leads to a hjgh score of J.K. Rowling).
 
+Architecture
+============================
+![Alt text](./architecture(1).jpg?raw=true "Architecture")
 
 Install k3s on OpenStack
 ============================
@@ -75,6 +78,10 @@ scp  ubuntu@MASTER_IP:/etc/rancher/k3s/k3s.yaml .
 ```sh
 export KUBECONFIG=MyPathTo/k3s.yaml
 ```
+
+Screencast
+------------
+[link to Video!](https://youtu.be/gCmktwVm8cY)
 
 Prerequisites
 ------------
