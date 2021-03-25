@@ -1,7 +1,12 @@
-
-
-Architecture
+What this application is about 
 ============================
+Our application contains a list of various bestselling books, as well as information about their authors, ratings and some other features. The data set used for this comes from kaggle.com.
+
+The data is output in a table, which enables further information to be displayed by clicking on the title of a respective book. When you call up a book for the first time, it is not temporarily stored in the cache: the value "false" is displayed. The next time it is called, the value changes to "true".
+
+Just like in the use case, 10 books can be fetched by clicking on "Randomly fetch some books".
+Depending on the frequency with which a book is called up, a diagram is displayed showing the ID of the book and how often it was called.
+You can also display and visualize the top authors here. "Top authors" are those, whose books are the most clicked ones(f.e. clicking all the Harry Patter Books leads to a hjgh score of J.K. Rowling).
 
 
 Install k3s on OpenStack
@@ -10,9 +15,8 @@ Install k3s on OpenStack
 Requirements
 ------------
 
--	[Terraform](https://www.terraform.io/downloads.html)
+-	[Terraform](https://www.terraform.io/downloads.html) 0.12.x
 -	[Ansible](https://www.ansible.com)
--	[Skaffold](https://skaffold.dev/)
 
 
 Apply the cluster
