@@ -9,7 +9,7 @@ terraform {
 provider "openstack" {
         user_name = ""
         password = ""
-        auth_url = "http://controller.4c.dhbw-mannheim.de:5000/v3"
+        auth_url = "http://controller.4c.xxxx.de:5000/v3"
         domain_name = "default"
         tenant_id = ""
 }
